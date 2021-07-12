@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+
+##################################################
+# Name: pre-commit
+# Description: Git pre-commit hooks
+##################################################
+
+SCRIPT=${0##*/}
+ACT="${HOME}/.config/act/run.sh"
+
+##################################################
+# Functions
+##################################################
+
+function msg() {
+
+    echo -e "\n$1"
+
+}
+
+function checkBin() {
+
+    local COMMAND="$1";
+
+    if ( type -P "${COMMAND}" &> /dev/null );
+    then
+
+        return 0;
+
+    else
+
+        msg "The command $COMMAND is not available in the Path";
+        return 1;
+
+    fi
+
+}
+
+export -f msg
+export -f checkBin
+
+##################################################
+# Common
+##################################################
+
+msg "STARTED: Running ${SCRIPT} Git hooks from $(pwd)"
+
+msg "Checking git submodules..."
+
+# Sync all the git submodules
+git submodule sync || { msg "Failed to sync git submodules!" ; exit 1 ; }
+
+# Initialize any submodules not yet configured
+git submodule init || { msg "Failed to init git submodules!" ; exit 1 ; }
+
+# Update all submodules
+git submodule update --remote --recursive || { msg "Failed to update git submodules!" ; exit 1 ; }
+
+##################################################
+# Language specific hooks
+##################################################
+
+#########################
+# Go
+#########################
+
+# Check for modified Go files
+STAGED_GO_FILES=$(git diff --cached --name-only | grep -E "\.go$")
+
+if [[ "${STAGED_GO_FILES:-EMPTY}" != "EMPTY" ]];
+then
+
+    msg "Running pre-commit hook for Go"
+    # shellcheck source=./pre-commit.d/go
+    source "./.githooks/pre-commit.d/go" || { msg "Error running Go Git hook!" ; exit 1 ; }
+
+fi
+
+#########################
+# Rust
+#########################
+
+# Check for modified Rust files
+STAGED_RUST_FILES=$(git diff --cached --name-only | grep -E "\.rs$")
+
+if [[ "${STAGED_RUST_FILES:-EMPTY}" != "EMPTY" ]];
+then
+
+    msg "Running pre-commit hook for Rust"
+    # shellcheck source=./pre-commit.d/rust
+    source "./.githooks/pre-commit.d/rust" || { msg "Error running Rust Git hook!" ; exit 1 ; }
+
+fi
+
+#########################
+# Terraform
+#########################
+
+# Check for Terraform files within the repository
+STAGED_TERRAFORM_FILES=$(git diff --cached --name-only | grep -E "\.tf$")
+
+if [[ "${STAGED_TERRAFORM_FILES:-EMPTY}" != "EMPTY" ]];
+then
+
+    msg "Running pre-commit hook for Terraform"
+    # shellcheck source=./pre-commit.d/terraform
+    source "./.githooks/pre-commit.d/terraform" || { msg "Error running Terraform Git hook!" ; exit 1 ; }
+
+fi
+
+#########################
+# Ansible
+#########################
+
+# Check for changed Ansible files within the repository
+STAGED_ANSIBLE_FILES=$(git diff --cached --name-only | grep -E "\/ansible\/")
+
+if [[ "${STAGED_ANSIBLE_FILES:-EMPTY}" != "EMPTY" ]];
+then
+
+    msg "Running pre-commit hook for Ansible"
+    # shellcheck source=./pre-commit.d/ansible
+    source "./.githooks/pre-commit.d/ansible" || { msg "Error running Ansible Git hook!" ; exit 1 ; }
+
+fi
+
+##################################################
+# GitHub Actions
+##################################################
+
+# Run GitHub Actions locally with Act if the wrapper is present on this local system
+if [ -f "${ACT}" ];
+then
+
+    if [ "${ENABLE_ACT:-EMPTY}" == "TRUE" ];
+    then
+
+        msg "Running GitHub Actions locally using Act"
+        "${ACT}" --dryrun || { msg "Error running GitHub Actions" ; exit 1 ; }
+
+    else
+
+        msg "GitHub Actions wrapper for Act has been disabled. Set \$ENABLE_ACT=TRUE to enable."
+
+    fi
+
+else
+
+    msg "GitHub Actions wrapper for Act not present"
+
+fi
+
+msg "FINISHED: Running ${SCRIPT} Git hooks from $(pwd)"
+
+exit 0

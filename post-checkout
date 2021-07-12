@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+##################################################
+# Name: post-checkout
+# Description: Git post-checkout hooks
+##################################################
+
+SCRIPT=${0##*/}
+
+##################################################
+# Functions
+##################################################
+
+function msg() {
+
+    echo -e "\n$1"
+
+}
+
+export -f msg
+
+##################################################
+# Common
+##################################################
+
+msg "STARTED: Running ${SCRIPT} Git hooks from $(pwd)"
+
+msg "Checking git submodules..."
+
+# Sync all the git submodules
+git submodule sync || { msg "Failed to sync git submodules!" ; exit 1 ; }
+
+# Initialize any submodules not yet configured
+git submodule init || { msg "Failed to init git submodules!" ; exit 1 ; }
+
+# Merge any changes from the submodules into the repo
+git submodule update --remote --recursive --merge || { msg "Failed to update git submodules!" ; exit 1 ; }
+
+# Determine the root directory where .git is located
+ROOT_DIR=$(git rev-parse --show-cdup)
+
+# Determine all the submodules
+SUBMODULES=$(grep path "${ROOT_DIR}".gitmodules | sed 's/^.*path = //')
+
+# Find the submodules that have been modified
+MOD_SUBMODULES=$(git diff --cached --name-only | grep -F "$SUBMODULES")
+
+# If no submodules were modified, continue.
+# Otherwise, prompt the user to upgrade
+if [[ -n "$MOD_SUBMODULES" ]];
+then
+
+    msg "The following submodules were modified upstream. Would you like to commit the update? [Y/N]"
+    echo "$MOD_SUBMODULES"
+
+    read -rn 1 REPLY </dev/tty
+
+    if [[ "$REPLY" == "Y" || "$REPLY" == "y" ]];
+    then
+        git add "$MOD_SUBMODULES"
+        msg "The submodule changes have been staged"
+    fi
+
+fi
+
+msg "FINISHED: Running ${SCRIPT} Git hooks from $(pwd)"
+
+exit 0

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+##################################################
+# Name: ansible
+# Description: Git pre-commit hook for Ansible projects
+##################################################
+
+SCRIPT="${BASH_SOURCE[0]}"
+
+#########################
+# Variables
+#########################
+
+ANSIBLE_LINT_CONFIG=""
+
+#########################
+# Functions
+#########################
+
+#########################
+# Main
+#########################
+
+msg "STARTED: Running ${SCRIPT} Git hook from $(pwd)"
+
+# Doh! check the ansible binaries are available
+#if ! checkBin ansible ;
+#then
+#
+#	msg "Error, please ensure the Ansible CLI is installed"
+#	return 1
+#
+#fi
+
+# Ansible Linting
+if ! checkBin ansible-lint;
+then
+
+	msg "Error, please install ansible-lint!"
+	return 1
+
+elif [[ ! -f "${ANSIBLE_LINT_CONFIG}" ]];
+then
+
+	msg "Warning, there is no ${ANSIBLE_LINT_CONFIG} file present in this repository, ansible-lint will be skipped."
+
+else
+
+	# TODO
+	ansible-lint \
+		--help
+		#--config="${TFLINT_CONFIG}" \
+	#|| { msg "ansible-lint failed!" ; return 1 ; }
+
+fi
+
+return 0

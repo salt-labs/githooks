@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+
+##################################################
+# Name: terraform
+# Description: Git pre-commit hook for Terraform projects
+##################################################
+
+SCRIPT="${BASH_SOURCE[0]}"
+
+#########################
+# Variables
+#########################
+
+# Enable TFLint debugging
+export TFLINT_LOG=debug
+
+# The TFLint config file
+export TFLINT_CONFIG=".github/linters/.tflint.hcl"
+
+# Disable the guidance messaging thats useless during automation
+export TF_IN_AUTOMATION=1
+
+# Terraform Docs config
+export TF_DOCS_CONFIG=".terraform-docs.yml"
+
+#########################
+# Functions
+#########################
+
+#########################
+# Main
+#########################
+
+msg "STARTED: Running ${SCRIPT} Git hook from $(pwd)"
+
+# Doh! check the Terraform CLI is available
+if ! checkBin terraform ;
+then
+
+	msg "Error, please ensure the Terraform CLI is installed"
+	return 1
+
+fi
+
+# Terraform init (no backend)
+terraform init \
+	-backend=false \
+	|| { msg "Error initialising Terraform!" ; return 1 ; }
+
+# Terraform Format (Changes)
+terraform fmt \
+	-list=true \
+	-write=true \
+	-diff \
+	-recursive \
+	|| { msg "Error formatting Terraform files" ; return 1 ; }
+
+# Terraform Format (Verification)
+terraform fmt \
+	-list=true \
+	-write=false \
+	-diff \
+	-check \
+	-recursive \
+	|| { msg "Error checking the format of the Terraform files" ; return 1 ; }
+
+# Terraform Validate
+terraform validate \
+	-no-color \
+	|| { msg "Error validating Terraform files" ; return 1 ; }
+
+# Terraform Linting
+if ! checkBin tflint;
+then
+
+	msg "Error, please install tflint!"
+	return 1
+
+elif [[ ! -f "${TFLINT_CONFIG}" ]];
+then
+
+	msg "Warning, there is no ${TFLINT_CONFIG} file present in this repository, TFLint will be skipped."
+
+else
+
+	tflint \
+		--module \
+		--config="${TFLINT_CONFIG}" \
+	|| { msg "TFLint failed!" ; return 1 ; }
+
+fi
+
+# Terraform Security
+if ! checkBin tfsec;
+then
+
+	msg "Warning, tfsec is not available in the path, skipping..."
+
+else
+
+	tfsec . \
+		--no-colour \
+		|| { msg "Error running tsec!" ; return 1 ; }
+
+fi
+
+# Terraform Docs
+if ! checkBin terraform-docs;
+then
+
+	msg "Warning, terraform-docs is not available in the path, skipping..."
+
+else
+
+	# shellcheck disable=SC2045
+	for DIRECTORY in $(ls -l modules);
+	do
+
+		if terraform-docs markdown \
+			"modules/${DIRECTORY}" \
+			> "modules/${DIRECTORY}/README.md";
+		then
+
+			git add "./modules/${DIRECTORY}/README.md"
+
+		else
+
+			msg "Error generating Terraform docs!"
+			return 1
+
+		fi
+
+	done
+
+fi
+
+return 0

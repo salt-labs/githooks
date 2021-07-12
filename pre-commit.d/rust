@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+##################################################
+# Name: rust
+# Description: Git pre-commit hook for Rust projects
+##################################################
+
+########################
+# Variables
+########################
+
+SCRIPT="${BASH_SOURCE[0]}"
+
+########################
+# Functions
+########################
+
+function rusty_checks() {
+
+    # Check with cargo
+    msg "Running Cargo check"
+    cargo check || { msg "Error running cargo check" ; return 1 ; }
+
+    # Format with cargo
+    msg "Running Cargo fmt"
+    cargo fmt --all || { msg "Error running cargo fmt" ; return 1 ; }
+
+    # Lint with clippy
+    msg "Running Cargo clippy"
+    cargo clippy --all --all-features -- -D warnings || { msg "Error running clippy" ; return 1 ; }
+
+    return 0
+
+}
+
+#########################
+# Main
+#########################
+
+msg "STARTED: Running ${SCRIPT} Git hook from $(pwd)"
+
+# Figure out where Cargo.toml is location
+while IFS= read -r -d '' CARGO_FILE
+do
+
+    CARGO_DIR=$( dirname "${CARGO_FILE}" )
+
+    msg "Running Rust checks from ${CARGO_DIR}"
+
+    pushd "${CARGO_DIR}" || { msg "Failed to push into ${CARGO_DIR}" ; return 1 ; }
+
+        rusty_checks || { msg "Failed to run the Rust checks" ; return 1 ; }
+
+    popd || { msg "Failed to pop from ${CARGO_DIR}" ; return 1 ; }
+
+done <  <( find . -type f -name "Cargo.toml" -print0 )
+
+msg "FINISHED: Running ${SCRIPT} Git hook from $(pwd)"
+
+return 0

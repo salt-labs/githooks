@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+
+##################################################
+# Name: go
+# Description: Git pre-commit hook for Go projects
+##################################################
+
+#########################
+# Variables
+#########################
+
+SCRIPT="${BASH_SOURCE[0]}"
+
+# Set a minimum bar for test coverage
+DESIRED_COVERAGE=80
+
+########################
+# Functions
+########################
+
+#########################
+# Main
+#########################
+
+msg "STARTED: Running ${SCRIPT} Git hook from $(pwd)"
+
+# Update go modules
+if [ -f "go.mod" ];
+then
+
+	# Download the Go modules
+	msg "Running Go mod download"
+	go mod download || { msg "Error downloading go modules" ; return 1 ; }
+
+	# Run Go mod tidy
+	msg "Running Go mod tidy"
+	go mod tidy -v || { msg "Error running Go mod tidy" ; return 1 ; }
+
+	# Run Go mod vendor
+	msg "Running Go mod vendor"
+	go mod vendor -v ||  { msg "Error running Go mod vendor" ; return 1 ; }
+
+fi
+
+# Update go modules (pulumi)
+if [ -f "infra/go.mod" ];
+then
+
+	pushd "infra" || { msg "Failed to pushd into infra" ; return 1 ; }
+
+	# Download the Go modules
+	msg "Running Go mod download"
+	go mod download || { msg "Error downloading go modules" ; return 1 ; }
+
+	# Run Go mod tidy
+	msg "Running Go mod tidy"
+	go mod tidy -v || { msg "Error running Go mod tidy" ; return 1 ; }
+
+	# Run Go mod vendor
+	msg "Running Go mod vendor"
+	go mod vendor -v ||  { msg "Error running Go mod vendor" ; return 1 ; }
+
+	popd || { msg "Failed to popd" ; return 1 ; }
+
+fi
+
+# Run Go fmt
+msg "Running Go fmt"
+go fmt ./... || { msg "Error running Go fmt" ; return 1 ; }
+
+for FILE in $(git diff --cached --name-only | grep -E "\.go$");
+do
+
+	msg "Formatting ${FILE}"
+	gofmt -s -w "${FILE}" || { msg "Failed to format ${FILE}" ; return 1 ; }
+
+done
+
+# Run Go vet
+msg "Running Go vet"
+go vet ./... || { msg "Error running Go vet" ; return 1 ; }
+
+# Run Golint
+msg "Running Golint"
+if ! type golint &>/dev/null;
+then
+	go get -v -u golang.org/x/lint/golint
+fi
+golint . || { msg "Error running Go lint" ; return 1 ; }
+
+# Run Golangci-lint
+msg "Running golangci-lint"
+if ! type golangci-lint &>/dev/null;
+then
+	go get -v -u github.com/golangci/golangci-lint
+fi
+golangci-lint run ./... || { msg "Error running golangci-lint" ; return 1 ; }
+
+# Run Go test
+msg "Running Go test"
+go test ./... || { msg "Error running Go test" ; return 1 ; }
+
+# Run go test coverage
+TEST_COVERAGE=$( go test -v -coverprofile=coverage.out ./... )
+
+# Don't measure if there was no test files
+if grep -q "no test files" <<< "${TEST_COVERAGE}";
+then
+
+	msg "No Go test files, skipping coverage checks"
+
+else
+
+	TEST_COVERINT=$( echo "${TEST_COVERAGE}" | sed -E "s/^.+ ([0-9]+).[0-9]%.+/\1/" )
+
+	if [ "${TEST_COVERINT:-EMPTY}" == "EMPTY" ];
+	then
+
+		msg "TEST COVERAGE FAILURE. Failed to determine the test coverage score."
+		return 1
+
+	elif [ "${TEST_COVERINT}" -lt "${DESIRED_COVERAGE}" ];
+	then
+
+		msg "TEST COVERAGE FAILURE. The test coverage $TEST_COVERINT% was less than the desired $DESIRED_COVERAGE"
+		return 1
+
+	else
+
+		msg "TEST COVERAGE PASS. The test coverage $TEST_COVERINT% was greater than the desired $DESIRED_COVERAGE"
+
+	fi
+
+fi
+
+msg "FINISHED: Running ${SCRIPT} Git hook from $(pwd)"
+
+return 0
