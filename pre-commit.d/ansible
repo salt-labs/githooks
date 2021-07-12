@@ -11,7 +11,11 @@ SCRIPT="${BASH_SOURCE[0]}"
 # Variables
 #########################
 
-ANSIBLE_LINT_CONFIG=""
+ANSIBLE_LINT_CONFIG=".github/linters/.ansible-lint.yml"
+ANSIBLE_VAULT_SCRIPT="$(pwd)/scripts/crypt.sh"
+
+export ANSIBLE_LINT_CONFIG
+export ANSIBLE_VAULT_SCRIPT
 
 #########################
 # Functions
@@ -46,11 +50,30 @@ then
 
 else
 
-	# TODO
 	ansible-lint \
-		--help
-		#--config="${TFLINT_CONFIG}" \
-	#|| { msg "ansible-lint failed!" ; return 1 ; }
+		-f rich \
+		-c "${ANSIBLE_LINT_CONFIG}" \
+		--progressive \
+		--show-relpath \
+		-T \
+	|| { 
+		msg "ansible-lint failed!"
+		return 1
+	}
+
+fi
+
+if [[ -f "${ANSIBLE_VAULT_SCRIPT}" ]];
+then
+
+	./${ANSIBLE_VAULT_SCRIPT} --encrypt || {
+		msg "Ansible Vault encryption failed!"
+		return 1
+	}
+
+else
+
+	msg "WARNING: Ansible Vault script not found, skipping encryption checks."
 
 fi
 
