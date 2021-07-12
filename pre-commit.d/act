@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+##################################################
+# Name: act
+# Description: Run GitHub Actions locally
+##################################################
+
+SCRIPT="${BASH_SOURCE[0]}"
+
+#########################
+# Variables
+#########################
+
+ACT="${HOME}/.config/act/run.sh"
+
+export ACT
+
+#########################
+# Functions
+#########################
+
+#########################
+# Main
+#########################
+
+msg "STARTED: Running ${SCRIPT} Git hook from $(pwd)"
+
+# Run GitHub Actions locally with Act if the wrapper is present on this local system
+if [[ -f "${ACT}" ]];
+then
+
+    # Act is an opt-in model.
+    if [[ "${ENABLE_ACT:-EMPTY}" == "TRUE" ]];
+    then
+
+        msg "Running GitHub Actions locally using Act"
+        "${ACT}" --dryrun || { msg "Error running GitHub Actions" ; exit 1 ; }
+
+    else
+
+        msg "GitHub Actions wrapper for Act has been disabled. Set \$ENABLE_ACT=TRUE to enable."
+
+    fi
+
+else
+
+    msg "INFO: GitHub Actions wrapper for Act not present, skipping hook..."
+
+fi
+
+return 0

@@ -27,15 +27,6 @@ export ANSIBLE_VAULT_SCRIPT
 
 msg "STARTED: Running ${SCRIPT} Git hook from $(pwd)"
 
-# Doh! check the ansible binaries are available
-#if ! checkBin ansible ;
-#then
-#
-#	msg "Error, please ensure the Ansible CLI is installed"
-#	return 1
-#
-#fi
-
 # Ansible Linting
 if ! checkBin ansible-lint;
 then
@@ -73,7 +64,7 @@ then
 
 else
 
-	msg "WARNING: Ansible Vault script not found, skipping encryption checks."
+	msg "WARNING: Ansible Vault script not found, skipping encryption checks..."
 
 fi
 

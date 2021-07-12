@@ -6,7 +6,6 @@
 ##################################################
 
 SCRIPT=${0##*/}
-ACT="${HOME}/.config/act/run.sh"
 
 ##################################################
 # Functions
@@ -128,27 +127,12 @@ fi
 # GitHub Actions
 ##################################################
 
-# Run GitHub Actions locally with Act if the wrapper is present on this local system
-if [ -f "${ACT}" ];
-then
+# shellcheck source=./pre-commit.d/act
+source "./.githooks/pre-commit.d/ansible" || { msg "Error running GitHub Actions Git hook!" ; exit 1 ; }
 
-    if [ "${ENABLE_ACT:-EMPTY}" == "TRUE" ];
-    then
-
-        msg "Running GitHub Actions locally using Act"
-        "${ACT}" --dryrun || { msg "Error running GitHub Actions" ; exit 1 ; }
-
-    else
-
-        msg "GitHub Actions wrapper for Act has been disabled. Set \$ENABLE_ACT=TRUE to enable."
-
-    fi
-
-else
-
-    msg "GitHub Actions wrapper for Act not present"
-
-fi
+##################################################
+# End Hooks
+##################################################
 
 msg "FINISHED: Running ${SCRIPT} Git hooks from $(pwd)"
 
