@@ -128,7 +128,7 @@ fi
 ##################################################
 
 # shellcheck source=./pre-commit.d/act
-source "./.githooks/pre-commit.d/ansible" || { msg "Error running GitHub Actions Git hook!" ; exit 1 ; }
+source "./.githooks/pre-commit.d/act" || { msg "Error running GitHub Actions Git hook!" ; exit 1 ; }
 
 ##################################################
 # End Hooks
