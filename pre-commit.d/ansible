@@ -46,7 +46,6 @@ else
 		-c "${ANSIBLE_LINT_CONFIG}" \
 		--progressive \
 		--show-relpath \
-		-T \
 	|| { 
 		msg "ansible-lint failed!"
 		return 1
