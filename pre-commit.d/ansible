@@ -56,7 +56,7 @@ fi
 if [[ -f "${ANSIBLE_VAULT_SCRIPT}" ]];
 then
 
-	./${ANSIBLE_VAULT_SCRIPT} --encrypt || {
+	"${ANSIBLE_VAULT_SCRIPT}" --encrypt || {
 		msg "Ansible Vault encryption failed!"
 		return 1
 	}
