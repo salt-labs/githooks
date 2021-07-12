@@ -11,11 +11,15 @@ SCRIPT="${BASH_SOURCE[0]}"
 # Variables
 #########################
 
-ANSIBLE_LINT_CONFIG=".github/linters/.ansible-lint.yml"
-ANSIBLE_VAULT_SCRIPT="$(pwd)/scripts/crypt.sh"
+ANSIBLE_DIRECTORY="${ANSIBLE_DIRECTORY:=ansible}"
+ANSIBLE_LINT_CONFIG="${ANSIBLE_LINT_CONFIG:=.github/linters/.ansible-lint.yml}"
+ANSIBLE_VAULT_SCRIPT="${ANSIBLE_VAULT_SCRIPT:=$(pwd)/scripts/crypt.sh}"
+ANSIBLE_LINT_ENABLED="FALSE"
 
+export ANSIBLE_DIRECTORY
 export ANSIBLE_LINT_CONFIG
 export ANSIBLE_VAULT_SCRIPT
+export ANSIBLE_LINT_ENABLED
 
 #########################
 # Functions
@@ -39,8 +43,25 @@ then
 
 	msg "Warning, there is no ${ANSIBLE_LINT_CONFIG} file present in this repository, ansible-lint will be skipped."
 
-else
+elif [[ -f "${ANSIBLE_DIRECTORY}/ansible.cfg" ]];
+then
 
+	# Move into Ansible directory
+	pushd "${ANSIBLE_DIRECTORY}" > /dev/null
+	msg "Pushed into Ansible directory"
+	ANSIBLE_LINT_ENABLED=TRUE
+
+elif [[ -f "ansible.cfg" ]];
+then
+
+	# Already in Ansible directory
+	msg "Found ansible.cfg"
+	ANSIBLE_LINT_ENABLED=TRUE
+
+fi
+
+if [[ "${ANSIBLE_LINT_ENABLED:-FALSE}" == "TRUE" ]];
+then	
 	ansible-lint \
 		-f rich \
 		-c "${ANSIBLE_LINT_CONFIG}" \
@@ -50,6 +71,12 @@ else
 		msg "ansible-lint failed!"
 		return 1
 	}
+
+	popd > /dev/null 2>&1
+
+else
+
+	msg "Unable to find ansible directory, ansible-lint skipped..."
 
 fi
 
