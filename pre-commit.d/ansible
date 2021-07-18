@@ -13,10 +13,11 @@ SCRIPT="${BASH_SOURCE[0]}"
 
 ANSIBLE_DIRECTORY="${ANSIBLE_DIRECTORY:=ansible}"
 ANSIBLE_LINT_CONFIG="${ANSIBLE_LINT_CONFIG:=.github/linters/.ansible-lint.yml}"
-ANSIBLE_VAULT_SCRIPT="${ANSIBLE_VAULT_SCRIPT:=$(pwd)/scripts/crypt.sh}"
+ANSIBLE_VAULT_SCRIPT="${ANSIBLE_VAULT_SCRIPT:=scripts/crypt.sh}"
 ANSIBLE_LINT_ENABLED="FALSE"
 
 export ANSIBLE_DIRECTORY
+export ANSIBLE_INVENTORY
 export ANSIBLE_LINT_CONFIG
 export ANSIBLE_VAULT_SCRIPT
 export ANSIBLE_LINT_ENABLED
@@ -31,8 +32,25 @@ export ANSIBLE_LINT_ENABLED
 
 msg "STARTED: Running ${SCRIPT} Git hook from $(pwd)"
 
+# Check Vaults are encrypted
+if [[ -f "${ANSIBLE_VAULT_SCRIPT}" ]];
+then
+
+	msg "Encrypting Vaults"
+
+	"${ANSIBLE_VAULT_SCRIPT}" encrypt || {
+		msg "Ansible Vault encryption exited with non-zero. Verify all vaults encrypted!"
+		return 1
+	}
+
+else
+
+	msg "WARNING: Ansible Vault script not found, skipping encryption checks..."
+
+fi
+
 # Ansible Linting
-if ! checkBin ansible-lint;
+if ! type ansible-lint >/dev/null;
 then
 
 	msg "Error, please install ansible-lint!"
@@ -46,9 +64,6 @@ then
 elif [[ -f "${ANSIBLE_DIRECTORY}/ansible.cfg" ]];
 then
 
-	# Move into Ansible directory
-	pushd "${ANSIBLE_DIRECTORY}" > /dev/null
-	msg "Pushed into Ansible directory"
 	ANSIBLE_LINT_ENABLED=TRUE
 
 elif [[ -f "ansible.cfg" ]];
@@ -61,36 +76,27 @@ then
 fi
 
 if [[ "${ANSIBLE_LINT_ENABLED:-FALSE}" == "TRUE" ]];
-then	
+then
+
+	msg "Running ansible-lint on ${ANSIBLE_DIRECTORY}"
+
+	pushd "${ANSIBLE_DIRECTORY}" || { echo "Failed to push into ${ANSIBLE_DIRECTORY}" ; exit 1 ; }
+
 	ansible-lint \
 		-f rich \
-		-c "${ANSIBLE_LINT_CONFIG}" \
-		--progressive \
+		-c "../${ANSIBLE_LINT_CONFIG}" \
 		--show-relpath \
+		--exclude roles \
+		--exclude collections \
 	|| { 
-		msg "ansible-lint failed!"
-		return 1
+		msg "ansible-lint failed, please review the output."
+		popd 2>/dev/null
 	}
-
-	popd > /dev/null 2>&1
+	popd >/dev/null 2>&1
 
 else
 
 	msg "Unable to find ansible directory, ansible-lint skipped..."
-
-fi
-
-if [[ -f "${ANSIBLE_VAULT_SCRIPT}" ]];
-then
-
-	"${ANSIBLE_VAULT_SCRIPT}" encrypt || {
-		msg "Ansible Vault encryption failed!"
-		return 1
-	}
-
-else
-
-	msg "WARNING: Ansible Vault script not found, skipping encryption checks..."
 
 fi
 

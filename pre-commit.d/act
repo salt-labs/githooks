@@ -23,13 +23,13 @@ export ACT
 # Main
 #########################
 
-msg "STARTED: Running ${SCRIPT} Git hook from $(pwd)"
-
 # Run GitHub Actions locally with Act if the wrapper is present on this local system
 if [[ -f "${ACT}" ]];
 then
 
-    # Act is an opt-in model.
+    msg "STARTED: Running ${SCRIPT} Git hook from $(pwd)"
+
+   # Act is an opt-in model.
     if [[ "${ENABLE_ACT:-EMPTY}" == "TRUE" ]];
     then
 

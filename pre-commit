@@ -6,6 +6,7 @@
 ##################################################
 
 SCRIPT=${0##*/}
+PATH="${HOME}/.local/bin:${PATH}"
 
 ##################################################
 # Functions
@@ -112,7 +113,7 @@ fi
 #########################
 
 # Check for changed Ansible files within the repository
-STAGED_ANSIBLE_FILES=$(git diff --cached --name-only | grep -E "\/ansible\/")
+STAGED_ANSIBLE_FILES=$(git diff --cached --name-only | egrep -E "ansible")
 
 if [[ "${STAGED_ANSIBLE_FILES:-EMPTY}" != "EMPTY" ]];
 then
